@@ -15,13 +15,13 @@ contract('Remittance', function (accounts) {
   const emptyAddress = /^0x0+$/
 
   beforeEach(function () {
-    return Remittance.new({ from: owner, value: web3.toWei('0.1', 'ether') })
+    return Remittance.new({ from: owner })
       .then(function (_instance) {
         instance = _instance;
         ownerBalance = web3.eth.getBalance(owner);
         recipientBalance = web3.eth.getBalance(recepient);
         exchangeBalance = web3.eth.getBalance(exchange);
-        return instance.returnPassword.call(exchange, "PasswordOne")
+        return instance.returnPassword(exchange, "PasswordOne")
         .then(result => {
           passwordHash = result;
         });  
@@ -29,7 +29,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not be able to create remittance if password one is empty", function () {
-    return instance.createRemittance(emptyAddress, emptyAddress, "", "", 0, { from: owner })
+    return instance.createRemittance(emptyAddress, emptyAddress, "", "",  { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         assert.isTrue(false);
       })
@@ -39,7 +39,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not be able to create remittance if password two is empty", function () {
-    return instance.createRemittance(emptyAddress, emptyAddress, "PasswordOne", "", 0, { from: owner })
+    return instance.createRemittance(emptyAddress, emptyAddress, "PasswordOne", "", { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         console.log(result);
         assert.isTrue(false);
@@ -50,7 +50,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not be able to create remittance if recipient is empty", function () {
-    return instance.createRemittance(emptyAddress, emptyAddress, "PasswordOne",  0, { from: owner })
+    return instance.createRemittance(emptyAddress, emptyAddress, "PasswordOne",  0, { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         console.log(result);
         assert.isTrue(false);
@@ -61,7 +61,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not be able to create remittance if exchange is empty", function () {
-    return instance.createRemittance(recepient, emptyAddress, "PasswordOne",  0, { from: owner })
+    return instance.createRemittance(recepient, emptyAddress, "PasswordOne",  0, { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         console.log(result);
         assert.isTrue(false);
@@ -72,7 +72,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not be able to create remittance if amount == 0 is empty", function () {
-    return instance.createRemittance(recepient, exchange, "PasswordOne",  0, { from: owner })
+    return instance.createRemittance(recepient, exchange, "PasswordOne", { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         console.log(result);
         assert.isTrue(false);
@@ -83,7 +83,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should  be able to create remittance", function () {
-    return instance.createRemittance(recepient, exchange, "PasswordOne",  web3.toWei('0.1', 'ether'), { from: owner })
+    return instance.createRemittance(recepient, exchange, "PasswordOne", { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         assert.isTrue(true);
       })
@@ -94,9 +94,9 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not be able to create a remittance with the same password", function () {
-    return instance.createRemittance(recepient, exchange, "PasswordOne",  web3.toWei('0.1', 'ether'), { from: owner })
+    return instance.createRemittance(recepient, exchange, "PasswordOne",  { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
-        return instance.createRemittance(recepient, exchange, "PasswordOne",  web3.toWei('0.1', 'ether'), { from: owner })
+        return instance.createRemittance(recepient, exchange, "PasswordOne",  { from: owner, value: web3.toWei('0.1', 'ether') })
         .then(result => {
           console.log(result)
           assert.isTrue(false);
@@ -114,9 +114,9 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not transfer funds if you are the owner", function () {
-    return instance.createRemittance(recepient, exchange, "PasswordOne",  web3.toWei('0.1', 'ether'), { from: owner })
+    return instance.createRemittance(recepient, exchange, "PasswordOne", { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
-        return instance.transferBalance(passwordHash,  web3.toWei('0.05', 'ether'), { from: owner })
+        return instance.transferBalance(passwordHash,  web3.toWei('0.05', 'ether'), { from: owner, value: web3.toWei('0.1', 'ether') })
           .then(result => {
             assert.isTrue(false);
           })
@@ -128,7 +128,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not transfer funds if you a recipients", function () {
-    return instance.createRemittance(recepient, exchange, "PasswordOne",  web3.toWei('0.1', 'ether'), { from: owner })
+    return instance.createRemittance(recepient, exchange, "PasswordOne",  { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         return instance.transferBalance(passwordHash,  web3.toWei('0.05', 'ether'), { from: recepient })
           .then(result => {
@@ -142,7 +142,7 @@ contract('Remittance', function (accounts) {
   });
 
   it("should not be able to get balance if not owner", function () {
-    return instance.createRemittance(recepient, exchange, "PasswordOne",  web3.toWei('0.1', 'ether'), { from: owner })
+    return instance.createRemittance(recepient, exchange, "PasswordOne",  { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
         return instance.readBalance(passwordHash,  { from: recepient })
           .then(result => {
@@ -156,24 +156,25 @@ contract('Remittance', function (accounts) {
   });
 
   let resultRemittance;
-
+  let balance;
 
   it("should be able to view balance", function () {
-    return instance.returnPassword.call(exchange, "PasswordOne")
+   
+    return instance.createRemittance(recepient, exchange, "PasswordOne",  { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
-        passwordHash = result;
-      });
-
-
-    return instance.createRemittance(recepient, exchange, "PasswordOne", web3.toWei('0.1', 'ether'), { from: owner })
-      .then(result => {
+        
+        resultRemittance = result;
         console.log(passwordHash);
-        return instance.readBalance(passwordHash, { from: exchange })
+        return instance.readBalance(passwordHash, { from: owner })
           .then(result => {
             let tx1 = web3.eth.getTransaction(resultRemittance.tx);
             let ownerNewBalance = web3.eth.getBalance(owner)
-              .plus(tx1.gasPrice.mul(resultRemittance.receipt.gasUsed));
+              .plus(tx1.gasPrice.mul(resultRemittance.receipt.gasUsed))
+              .plus(web3.toWei('0.1', 'ether'));
+              console.log(ownerNewBalance.toNumber());
+              console.log(ownerBalance.toNumber());
             assert.isTrue(ownerNewBalance.toNumber() == ownerBalance.toNumber())
+
           })
           .catch(result => {
             console.log(result);
@@ -190,7 +191,7 @@ contract('Remittance', function (accounts) {
 
 
   it("should  be able to create transfer", function () {
-    return instance.createRemittance(recepient, exchange, "PasswordOne", web3.toWei('0.1', 'ether'), { from: owner })
+    return instance.createRemittance(recepient, exchange, "PasswordOne", { from: owner, value: web3.toWei('0.1', 'ether') })
       .then(result => {
 
         return instance.transferBalance(passwordHash, web3.toWei('0.05', 'ether'), { from: exchange })
@@ -211,4 +212,21 @@ contract('Remittance', function (accounts) {
         assert.isTrue(false);
       })
   });
+
+  it("should not be able to create transfer", function () {
+    return instance.createRemittance(recepient, exchange, "PasswordOne", { from: owner, value: web3.toWei('0.1', 'ether') })
+      .then(result => {
+
+        return instance.transferBalance(passwordHash, web3.toWei('1.05', 'ether'), { from: exchange })
+          .then(result => {
+            console.log(result);
+            assert.isTrue(false);
+          })
+      })
+      .catch(result => {
+        console.log(result);
+        assert.isTrue(true);
+      })
+  });
+
 });

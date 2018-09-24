@@ -9,61 +9,72 @@ contract Remittance is  Pauseable {
   event LogViewBalance(address sender);
   event LogUpdateBalance(address sender,uint deduction);
 
-  modifier onlyIfDetailsAreCorrect(bool hashBeingUsed, string passwordOne, address beneficiary,address exchange, uint amount)
+  modifier onlyIfDetailsAreCorrect(string passwordOne, address beneficiary,address exchange)
   {
     require (bytes(passwordOne).length > 0,"Password One cannot be empty");
-    require (hashBeingUsed == false,"This password has already been used.");
     require (beneficiary != address(0),"Beneficiary address cannot be null");
     require (exchange != address(0),"Exchange address cannot be null");
-    require (amount > 0,"Amount cannot be zero");
     _;
   }
 
-  modifier onlyIfExchange(address exchange, uint timestampContractCreated, bytes32 passwordHash) 
-  {
-    require (passwordHash.length > 0,"Password hash cannot be empty");
-    require (exchange == msg.sender,"Unauthorized!");
-    require ((((timestampContractCreated - now) / 60 / 60 / 24 ) < 30), "30 day withdrawal expired");
-    _;
+  constructor () public  {
+
   }
 
-  constructor () public payable {}
-
-  struct RemittanceStruct {
+  struct RemittanceStructs {
+    uint balance;
+    uint deadline;
     address exchange;
-    uint amount;
-    uint timestamp;
+    address owner;
   }
 
   mapping (bytes32 => bool) public hashUsed;
-  mapping (bytes32 => RemittanceStruct) internal pendingWithdrawals;
+  mapping (bytes32 => RemittanceStructs) public pendingWithdrawals;
 
-  function returnPassword(address exchange, string beneficiary) public onlyOwner view returns(bytes32) {
-    return keccak256(abi.encodePacked(exchange, keccak256(abi.encodePacked(beneficiary)), address(this)));
+
+  function returnPassword(address exchange, string beneficiary) public view returns(bytes32) {
+    return keccak256(abi.encodePacked(exchange,beneficiary, address(this)));
   }
 
   function createRemittance(
     address beneficiary, 
     address exchange,
-    string passwordOne,
-    uint amount
-  )  public onlyIfDetailsAreCorrect(hashUsed[keccak256(abi.encodePacked(passwordOne))], passwordOne, beneficiary, exchange,amount) onlyOwner
+    string passwordOne
+  )  public onlyIfDetailsAreCorrect(passwordOne, beneficiary, exchange) payable returns (bool success)
   {
+    uint amount = msg.value;
     emit LogAddTransaction(msg.sender,beneficiary, exchange, amount);
-    hashUsed[keccak256(abi.encodePacked(passwordOne))] = true;
     bytes32 passwordHash = returnPassword(exchange,passwordOne);
-    pendingWithdrawals[passwordHash] = RemittanceStruct(exchange,amount,now);
+    require (amount > 0,"Amount cannot be zero");
+    require (hashUsed[keccak256(abi.encodePacked(passwordOne,beneficiary,exchange))] == false,"This password has already been used.");
+
+    hashUsed[keccak256(abi.encodePacked(passwordOne,beneficiary,exchange))] = true;
+    pendingWithdrawals[passwordHash] = RemittanceStructs(amount, now + 30 days, exchange, msg.sender);
+    return (true);
   }
 
   function transferBalance(
     bytes32 passwordHash,
     uint deduction
-  )  public onlyIfExchange(pendingWithdrawals[passwordHash].exchange, pendingWithdrawals[passwordHash].timestamp, passwordHash)
+  )  public
   {
     emit LogUpdateBalance(msg.sender,deduction);
-    require (pendingWithdrawals[passwordHash].amount >= deduction,"Not enough funds");
-    pendingWithdrawals[passwordHash].amount -= deduction;
+
+    require (passwordHash.length > 0,"Password hash cannot be empty");
+    require ((pendingWithdrawals[passwordHash].deadline > now), "30 day withdrawal expired");
+    require (pendingWithdrawals[passwordHash].balance >= deduction,"Not enough funds");
+    require (pendingWithdrawals[passwordHash].exchange == msg.sender,"Unathorized.");
+    pendingWithdrawals[passwordHash].balance -= deduction;
     msg.sender.transfer(deduction);
+  }
+
+  function refund(bytes32 passwordHash) public 
+  {
+    require ((pendingWithdrawals[passwordHash].owner == msg.sender),"Unathorized.");
+    require ((pendingWithdrawals[passwordHash].deadline <= now), "Unathorized.");
+    uint amount = pendingWithdrawals[passwordHash].balance;
+    pendingWithdrawals[passwordHash].balance = 0;
+    msg.sender.transfer(amount);
   }
 
   function emergencyWithdraw() public onlyWhenStopped onlyOwner {
@@ -73,9 +84,9 @@ contract Remittance is  Pauseable {
 
   function readBalance(
     bytes32 passwordHash
-  )  public onlyIfExchange(pendingWithdrawals[passwordHash].exchange, pendingWithdrawals[passwordHash].timestamp,passwordHash) returns (uint)
+  )  public view returns (uint)
   {
-    emit LogViewBalance(msg.sender);
-    return (pendingWithdrawals[passwordHash].amount);
+    require (passwordHash.length > 0,"Password hash cannot be empty");
+    return (pendingWithdrawals[passwordHash].balance);
   }
 }
